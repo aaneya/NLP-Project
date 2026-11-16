@@ -1,0 +1,46 @@
+{
+  "Fine-tuned distilbert-base-uncased-finetuned-sst-2-english": {
+    "accuracy": 0.9116,
+    "precision": 0.8869002857572568,
+    "recall": 0.94352,
+    "f1": 0.9143344445305838,
+    "confusion_matrix": [
+      [
+        10996,
+        1504
+      ],
+      [
+        706,
+        11794
+      ]
+    ],
+    "train_samples": 22500,
+    "validation_samples": 2500,
+    "test_samples": 25000,
+    "epochs": 2.0,
+    "train_seconds": 299.0,
+    "max_len": 256,
+    "seed": 42,
+    "source": "local parquet splits"
+  },
+  "TF-IDF + Logistic Regression": {
+    "accuracy": 0.88932,
+    "precision": 0.8903505253870218,
+    "recall": 0.888,
+    "f1": 0.889173709296271,
+    "confusion_matrix": [
+      [
+        11133,
+        1367
+      ],
+      [
+        1400,
+        11100
+      ]
+    ],
+    "train_samples": 25000,
+    "test_samples": 25000,
+    "train_seconds": 13.8,
+    "source": "local parquet splits"
+  }
+}
