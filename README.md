@@ -4,7 +4,6 @@ This repository contains two Natural Language Processing (NLP) projects:
 
 Project 10 – Document Sentiment Analysis with BERT
 Project 12 – Question Answering System
-
 Project 10: Document Sentiment Analysis with BERT
 Objective
 
@@ -34,8 +33,6 @@ Show confidence score and model comparison, if implemented.
 Expected Output
 
 A BERT-based application that classifies the sentiment of longer text documents.
-
-
 
 Project 12: Question Answering System
 Objective
@@ -71,4 +68,6 @@ Group Information
 
 Group Number: 17
 
-Project 10: Document
+Project 10: Document Sentiment Analysis with BERT
+
+Project 12: Question Answering System
