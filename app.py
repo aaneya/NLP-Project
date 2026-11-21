@@ -5,7 +5,6 @@ from pathlib import Path
 
 import joblib
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 import torch
@@ -17,76 +16,9 @@ from common import LABELS, METRICS_FILE, MODELS_DIR, clean_text
 FALLBACK = "distilbert-base-uncased-finetuned-sst-2-english"
 st.set_page_config(page_title="SentiBERT | Document intelligence", page_icon="🎭", layout="wide")
 
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
-:root { --ink:#e8edf5; --muted:#9aa8bc; --line:#263248; --panel:#111b2b; --bg:#0b1220; --cyan:#55d6c2; --blue:#4d8dff; }
-.stApp { background:radial-gradient(ellipse at 85% 4%,rgba(49,119,228,.12),transparent 27%),radial-gradient(ellipse at 12% 0%,rgba(40,205,182,.12),transparent 30%),linear-gradient(180deg,#0b1220 0%,#080f1b 100%); color:var(--ink); font-family:'DM Sans',sans-serif; }
-h1,h2,h3 { font-family:'Space Grotesk',sans-serif!important; letter-spacing:-.035em; }
-h1 { font-size:2.65rem!important; }
-.block-container { max-width:1260px; padding-top:2rem; padding-bottom:4rem; }
-[data-testid="stMetric"] { background:linear-gradient(145deg,#152238,#111b2b); border:1px solid var(--line); border-radius:16px; padding:18px 20px; }
-[data-testid="stMetricValue"] { font-family:'Space Grotesk',sans-serif; }
-
-/* Premium hero */
-.hero { position:relative; display:flex; align-items:center; justify-content:space-between; gap:28px; min-height:230px; overflow:hidden; isolation:isolate; border:1px solid rgba(104,153,205,.25); border-radius:26px; padding:32px 38px; margin:8px 0 24px; background:linear-gradient(112deg,rgba(20,39,63,.98),rgba(14,28,47,.92) 60%,rgba(16,39,58,.9)); box-shadow:0 24px 70px rgba(0,0,0,.24),inset 0 1px rgba(255,255,255,.04); }
-.hero::before { content:''; position:absolute; z-index:-1; width:390px; height:390px; right:8%; top:-250px; border-radius:50%; background:radial-gradient(circle,rgba(55,215,194,.17),rgba(77,141,255,.06) 48%,transparent 70%); filter:blur(4px); }
-.hero-copy { position:relative; z-index:2; max-width:760px; }
-.hero-kicker { display:inline-flex; align-items:center; gap:9px; color:#8ceadd; text-transform:uppercase; letter-spacing:.15em; font-size:.7rem; font-weight:700; padding:8px 12px; border:1px solid rgba(85,214,194,.22); border-radius:999px; background:rgba(35,185,171,.08); }
-.kicker-dot { width:7px; height:7px; border-radius:50%; background:#55d6c2; box-shadow:0 0 12px rgba(85,214,194,.9); }
-.hero h1 { margin:18px 0 8px; color:#f5f8ff; font-size:clamp(2.2rem,4vw,3.35rem)!important; line-height:1.05; }
-.hero-title-accent { color:#55d6c2; background:linear-gradient(100deg,#70ecd5 5%,#62b8ff 95%); background-clip:text; -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-.hero-sub { color:#aebbd0; max-width:660px; margin:0; font-size:1rem; line-height:1.7; }
-.hero-pills { display:flex; flex-wrap:wrap; gap:9px; margin-top:19px; }
-.hero-pills span { color:#cbd8e9; font-size:.76rem; padding:7px 11px; border:1px solid rgba(159,184,217,.15); border-radius:999px; background:rgba(8,17,31,.32); }
-.hero-art { position:relative; flex:0 0 205px; width:205px; height:175px; margin-right:20px; }
-.hero-core { position:absolute; z-index:2; display:grid; place-items:center; width:92px; height:92px; top:41px; left:54px; border:1px solid rgba(173,247,235,.55); border-radius:31px; background:linear-gradient(145deg,rgba(71,220,194,.96),rgba(59,133,232,.92)); box-shadow:0 0 40px rgba(53,205,195,.25),inset 0 1px rgba(255,255,255,.52); transform:rotate(-10deg); animation:core-float 6s ease-in-out infinite; }
-.hero-core span { color:#effffb; font-size:2.2rem; text-shadow:0 3px 14px rgba(4,32,49,.35); transform:rotate(10deg); }
-.hero-orbit { position:absolute; border:1px solid rgba(126,200,229,.22); border-radius:50%; transform:rotate(-24deg); }
-.hero-orbit-one { width:176px; height:86px; top:46px; left:11px; }
-.hero-orbit-two { width:156px; height:126px; top:27px; left:20px; transform:rotate(35deg); border-color:rgba(85,214,194,.2); }
-.hero-bubble { position:absolute; z-index:3; display:grid; place-items:center; border:1px solid rgba(193,228,255,.34); border-radius:50%; background:linear-gradient(145deg,rgba(65,105,165,.65),rgba(35,58,91,.82)); color:#b9f5eb; box-shadow:0 10px 24px rgba(0,0,0,.24),inset 0 1px rgba(255,255,255,.2); animation:bubble-float 5s ease-in-out infinite; }
-.hero-bubble-one { width:38px; height:38px; top:13px; right:18px; font-size:.75rem; }
-.hero-bubble-two { width:27px; height:27px; bottom:20px; right:7px; color:#a9c8ff; animation-delay:-1.8s; }
-.hero-bubble-three { width:19px; height:19px; bottom:26px; left:8px; animation-delay:-3s; }
-@keyframes bubble-float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-9px); } }
-@keyframes core-float { 0%,100% { transform:translateY(0) rotate(-10deg); } 50% { transform:translateY(-5px) rotate(-6deg); } }
-
-/* Rounded, active-state navigation */
-div[data-testid="stTabs"] [data-baseweb="tab-list"] { display:flex; width:max-content; max-width:100%; gap:7px; padding:6px; border:1px solid rgba(123,153,192,.16); border-radius:999px; background:rgba(12,22,37,.82); }
-div[data-testid="stTabs"] button[data-baseweb="tab"] { min-height:42px; padding:0 18px; border:1px solid transparent; border-radius:999px; color:#aab9cd; font-weight:600; transition:background .22s ease,color .22s ease,box-shadow .22s ease,transform .22s ease; }
-div[data-testid="stTabs"] button[data-baseweb="tab"]:hover { color:#e9f5ff; background:rgba(75,127,180,.14); }
-div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] { color:#f4ffff; border-color:rgba(85,214,194,.26); background:linear-gradient(110deg,rgba(42,181,166,.24),rgba(67,119,205,.24)); box-shadow:0 5px 18px rgba(38,174,176,.12); }
-div[data-testid="stTabs"] [data-baseweb="tab-highlight"] { display:none; }
-
-/* Document dropzone and text entry */
-.upload-intro { display:flex; align-items:center; gap:13px; margin:2px 0 11px; }
-.upload-icon { display:grid; place-items:center; width:42px; height:42px; flex:none; border:1px solid rgba(85,214,194,.25); border-radius:14px; color:#89f0df; background:linear-gradient(145deg,rgba(46,207,184,.17),rgba(73,139,241,.16)); box-shadow:0 8px 22px rgba(11,36,58,.3); font-size:1.35rem; }
-.upload-copy strong { display:block; color:#e8f2ff; font-size:.95rem; }
-.upload-copy span { color:#92a4ba; font-size:.78rem; }
-div[data-testid="stFileUploader"] { padding:5px; border:1px dashed rgba(91,177,205,.34); border-radius:20px; background:linear-gradient(145deg,rgba(20,39,60,.72),rgba(14,27,44,.72)); transition:border-color .22s ease,box-shadow .22s ease,transform .22s ease; }
-div[data-testid="stFileUploader"]:hover { border-color:rgba(85,214,194,.72); box-shadow:0 12px 30px rgba(20,162,174,.1); transform:translateY(-1px); }
-div[data-testid="stFileUploader"] section { border:0!important; border-radius:15px; background:transparent!important; }
-div[data-testid="stFileUploader"] button { border-radius:999px!important; border:1px solid rgba(119,167,205,.25)!important; background:rgba(40,76,112,.42)!important; color:#d9ecfa!important; transition:all .2s ease!important; }
-div[data-testid="stFileUploader"] button:hover { border-color:rgba(85,214,194,.56)!important; background:rgba(42,126,139,.3)!important; transform:translateY(-1px); }
-div[data-testid="stTextArea"] [data-baseweb="textarea"] { overflow:hidden; border:1px solid rgba(111,143,180,.26); border-radius:18px; background:linear-gradient(145deg,rgba(20,32,49,.94),rgba(16,27,43,.96)); transition:border-color .2s ease,box-shadow .2s ease,transform .2s ease; }
-div[data-testid="stTextArea"] [data-baseweb="textarea"]:focus-within { border-color:rgba(85,214,194,.75); box-shadow:0 0 0 3px rgba(57,197,185,.12),0 12px 30px rgba(7,20,34,.24); transform:translateY(-1px); }
-div[data-testid="stTextArea"] textarea { color:#edf5ff; background:transparent; }
-div[data-testid="stTextArea"] textarea::placeholder { color:#72849c; }
-div.stButton > button[kind="primary"] { min-height:50px; border:1px solid rgba(151,255,236,.3); border-radius:999px; background:linear-gradient(105deg,#27d6b7 0%,#269fda 52%,#477ff3 100%); color:#051522; font-weight:700; letter-spacing:.01em; padding:.78rem 1.35rem; box-shadow:0 10px 28px rgba(27,174,192,.24),inset 0 1px rgba(255,255,255,.38); transition:transform .2s ease,box-shadow .2s ease,filter .2s ease; }
-div.stButton > button[kind="primary"]:hover { transform:translateY(-2px); filter:saturate(1.12) brightness(1.06); box-shadow:0 14px 34px rgba(36,186,205,.34),0 0 0 4px rgba(67,188,205,.08),inset 0 1px rgba(255,255,255,.42); }
-div.stButton > button[kind="primary"]:active { transform:translateY(0); }
-div.stButton > button:focus-visible { outline:2px solid #8deee0; outline-offset:3px; }
-div.stButton > button:not([kind="primary"]) { border-radius:999px; transition:transform .2s ease,background .2s ease; }
-div.stButton > button:not([kind="primary"]):hover { transform:translateY(-1px); }
-.section-note { color:#9aa8bc; font-size:.92rem; }
-div[data-testid="stExpander"] { border:1px solid var(--line); border-radius:14px; }
-small { color:var(--muted); }
-@media (max-width:760px) { .hero { min-height:unset; padding:24px 22px; } .hero-art { flex:0 0 120px; width:120px; height:130px; margin:0 -8px 0 0; transform:scale(.78); transform-origin:center right; } .hero-core { left:24px; } .hero-orbit-one { left:-16px; } .hero-orbit-two { left:-9px; } .hero h1 { font-size:2.2rem!important; } .hero-sub { font-size:.9rem; } div[data-testid="stTabs"] [data-baseweb="tab-list"] { width:100%; overflow-x:auto; } div[data-testid="stTabs"] button[data-baseweb="tab"] { padding:0 13px; white-space:nowrap; } }
-@media (max-width:520px) { .hero { padding:22px 18px; } .hero-art { display:none; } .hero h1 { font-size:2rem!important; } .hero-pills { gap:6px; } .hero-pills span { font-size:.7rem; } }
-@media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms!important; animation-iteration-count:1!important; scroll-behavior:auto!important; transition-duration:.01ms!important; } }
-</style>
-""", unsafe_allow_html=True)
+# Presentation layer only: the stylesheet contains no application logic.
+_CSS = (Path(__file__).resolve().parent / "assets" / "style.css").read_text(encoding="utf-8")
+st.markdown(f"<style>{_CSS}</style>", unsafe_allow_html=True)
 
 
 @st.cache_resource(show_spinner="Loading sentiment model…")
@@ -128,59 +60,376 @@ def read_upload(f) -> str:
     return f.getvalue().decode("utf-8", errors="ignore")
 
 
-def probability_chart(probabilities):
+CHART_INK = "#292936"
+CHART_GREY = "#777582"
+CHART_ROSE = "#D2A3B9"
+CHART_MAUVE = "#BD91AC"
+CHART_LAVENDER = "#E8E1F1"
+CHART_PINK = "#F1E6EC"
+CHART_OFF = "#F8F7F8"
+CHART_GRID = "rgba(41,41,54,0.075)"
+CHART_AXIS = "rgba(41,41,54,0.16)"
+CHART_FONT = "Inter, system-ui, sans-serif"
+CHART_SERIF = "Instrument Serif, Georgia, serif"
+METRIC_KEYS = ["accuracy", "precision", "recall", "f1"]
+METRIC_LABELS = ["Accuracy", "Precision", "Recall", "F1"]
+
+
+def _short_model(name: str) -> str:
+    lowered = name.lower()
+    if "tf-idf" in lowered:
+        return "TF-IDF + LogReg"
+    if "distilbert" in lowered or "bert" in lowered:
+        return "Fine-tuned DistilBERT"
+    return name
+
+
+def _chart_base(fig, height=330, margin=None, showlegend=False):
+    fig.update_layout(
+        height=height,
+        margin=margin or dict(l=8, r=18, t=18, b=8),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family=CHART_FONT, size=10, color=CHART_GREY),
+        hoverlabel=dict(bgcolor=CHART_INK, bordercolor=CHART_INK,
+                        font=dict(family=CHART_FONT, size=11, color=CHART_OFF)),
+        showlegend=showlegend,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0,
+                    bgcolor="rgba(0,0,0,0)", font=dict(size=9, color=CHART_GREY)),
+    )
+    return fig
+
+
+def _chart_axes(fig, x_grid=False):
+    fig.update_xaxes(showgrid=x_grid, gridcolor=CHART_GRID, zeroline=False,
+                     linecolor=CHART_AXIS, tickfont=dict(size=9, color=CHART_GREY),
+                     title_font=dict(size=9, color=CHART_GREY))
+    fig.update_yaxes(showgrid=True, gridcolor=CHART_GRID, zeroline=False,
+                     linecolor=CHART_AXIS, tickfont=dict(size=9, color=CHART_GREY),
+                     title_font=dict(size=9, color=CHART_GREY))
+    return fig
+
+
+def probability_chart(probabilities, aggregation="Mean"):
     df = pd.DataFrame({"Window": list(range(1, len(probabilities) + 1)),
                        "Positive probability": probabilities})
+    aggregate = df["Positive probability"].mean() if aggregation == "Mean" else df["Positive probability"].median()
+    aggregate_label = "window mean" if aggregation == "Mean" else "window median"
     fig = go.Figure()
-    fig.add_hrect(y0=0, y1=.5, fillcolor="#ff7185", opacity=.045, line_width=0)
-    fig.add_hrect(y0=.5, y1=1, fillcolor="#55d6c2", opacity=.045, line_width=0)
-    fig.add_hline(y=.5, line_dash="dot", line_color="#8492a8", opacity=.7,
-                  annotation_text="decision boundary", annotation_position="top left")
+    fig.add_hrect(y0=0, y1=.5, fillcolor=CHART_ROSE, opacity=.055, line_width=0)
+    fig.add_hrect(y0=.5, y1=1, fillcolor=CHART_LAVENDER, opacity=.5, line_width=0)
+    fig.add_hline(y=.5, line_dash="dot", line_color=CHART_GREY, opacity=.55,
+                  annotation_text="decision boundary · 50%", annotation_position="top left",
+                  annotation_font=dict(size=9, color=CHART_GREY, family=CHART_FONT))
+    fig.add_hline(y=aggregate, line_dash="dash", line_color=CHART_MAUVE, opacity=.85,
+                  annotation_text=f"{aggregate_label} · {aggregate:.0%}", annotation_position="bottom right",
+                  annotation_font=dict(size=9, color=CHART_MAUVE, family=CHART_FONT))
     fig.add_trace(go.Scatter(x=df["Window"], y=df["Positive probability"], mode="lines+markers",
-        line=dict(color="#55d6c2", width=3), marker=dict(size=8, color="#55d6c2",
-        line=dict(color="#0b1220", width=2)), hovertemplate="Window %{x}<br>P(positive): %{y:.1%}<extra></extra>"))
-    fig.update_layout(height=330, margin=dict(l=10,r=18,t=28,b=10), paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)", font=dict(color="#cbd5e1", family="DM Sans"),
-        xaxis_title="Document window", yaxis_title="P(positive)", yaxis=dict(range=[0,1],tickformat=".0%",gridcolor="#263248"),
-        xaxis=dict(dtick=max(1, len(probabilities)//12), gridcolor="#1c293d", zeroline=False),
-        showlegend=False, hovermode="x")
+        line=dict(color=CHART_MAUVE, width=2.4, shape="spline", smoothing=.55),
+        marker=dict(size=7, color=CHART_ROSE, line=dict(color=CHART_OFF, width=2)),
+        fill="tozeroy", fillcolor="rgba(210,163,185,.13)",
+        hovertemplate="Window %{x}<br>P(positive) %{y:.1%}<extra></extra>"))
+    _chart_base(fig, height=355, margin=dict(l=6, r=20, t=24, b=6))
+    _chart_axes(fig, x_grid=False)
+    fig.update_layout(hovermode="x unified")
+    fig.update_xaxes(title_text="Document window", dtick=max(1, len(probabilities) // 12),
+                     gridcolor=CHART_GRID, zeroline=False)
+    fig.update_yaxes(title_text="P(positive)", range=[0, 1], tickformat=".0%",
+                     gridcolor=CHART_GRID, zeroline=False)
     return fig
 
 
 def probability_gauge(p):
-    fig = go.Figure(go.Indicator(mode="gauge+number", value=p*100,
-        number={"suffix":"%", "font":{"size":34,"color":"#e8edf5"}},
-        gauge={"axis":{"range":[0,100],"ticksuffix":"%","tickcolor":"#9aa8bc"},
-            "bar":{"color":"#55d6c2","thickness":.28},"bgcolor":"#17243a","borderwidth":0,
-            "steps":[{"range":[0,50],"color":"#3a2637"},{"range":[50,100],"color":"#183a3c"}],
-            "threshold":{"line":{"color":"#f0c36a","width":3},"thickness":.8,"value":50}}))
-    fig.update_layout(height=205, margin=dict(l=18,r=18,t=16,b=4), paper_bgcolor="rgba(0,0,0,0)",
-                      font={"color":"#cbd5e1","family":"DM Sans"})
+    fig = go.Figure(go.Indicator(mode="gauge+number", value=p * 100,
+        number={"suffix": "%", "font": {"size": 42, "color": CHART_INK, "family": CHART_SERIF}},
+        gauge={"axis": {"range": [0, 100], "ticksuffix": "%", "tickcolor": CHART_GREY,
+                        "tickfont": {"size": 9, "color": CHART_GREY, "family": CHART_FONT},
+                        "dtick": 25, "tickwidth": 1},
+            "bar": {"color": CHART_MAUVE, "thickness": .22},
+            "bgcolor": "rgba(0,0,0,0)", "borderwidth": 0,
+            "steps": [{"range": [0, 50], "color": CHART_PINK},
+                      {"range": [50, 100], "color": CHART_LAVENDER}],
+            "threshold": {"line": {"color": CHART_INK, "width": 2}, "thickness": .72, "value": 50}}))
+    _chart_base(fig, height=215, margin=dict(l=34, r=34, t=10, b=4))
+    return fig
+
+
+def window_distribution_chart(probabilities):
+    fig = go.Figure(go.Histogram(x=list(probabilities), xbins=dict(start=0, end=1, size=.1),
+        marker=dict(color=CHART_ROSE, line=dict(color=CHART_OFF, width=1)), opacity=.9,
+        hovertemplate="P(positive) %{x:.0%}<br>%{y} window(s)<extra></extra>"))
+    mean = sum(probabilities) / len(probabilities)
+    fig.add_vline(x=.5, line_dash="dot", line_color=CHART_GREY, opacity=.5)
+    fig.add_vline(x=mean, line_dash="dash", line_color=CHART_MAUVE, opacity=.9,
+                  annotation_text=f"mean {mean:.0%}", annotation_position="top",
+                  annotation_font=dict(size=9, color=CHART_MAUVE, family=CHART_FONT))
+    _chart_base(fig, height=285, margin=dict(l=6, r=12, t=22, b=30))
+    _chart_axes(fig)
+    fig.update_layout(bargap=.06, hovermode="x")
+    fig.update_xaxes(title_text="P(positive)", range=[0, 1], tickformat=".0%", nticks=5,
+                     title_standoff=4)
+    fig.update_yaxes(title_text=None, gridcolor=CHART_GRID, rangemode="tozero", nticks=3)
+    return fig
+
+
+def window_mix_chart(probabilities, neutral_band):
+    counts = {"Negative": 0, "Neutral / mixed": 0, "Positive": 0}
+    for p in probabilities:
+        label, _ = verdict(p, neutral_band)
+        counts[label] += 1
+    color_map = {"Negative": CHART_ROSE, "Neutral / mixed": CHART_LAVENDER, "Positive": CHART_MAUVE}
+    labels = [k for k, v in counts.items() if v > 0]
+    values = [counts[k] for k in labels]
+    fig = go.Figure(go.Pie(labels=labels, values=values, hole=.66, sort=False, direction="clockwise",
+        marker=dict(colors=[color_map[k] for k in labels], line=dict(color=CHART_OFF, width=2)),
+        textinfo="none",
+        hovertemplate="%{label}<br>%{value} window(s) · %{percent}<extra></extra>"))
+    fig.add_annotation(text=f"<b>{len(probabilities)}</b><br><span style='font-size:9px;letter-spacing:.14em'>WINDOWS</span>",
+                       showarrow=False, font=dict(family=CHART_SERIF, size=28, color=CHART_INK))
+    _chart_base(fig, height=285, margin=dict(l=8, r=8, t=10, b=38), showlegend=True)
+    fig.update_layout(legend=dict(orientation="h", yanchor="top", y=-.04, x=0,
+                                  font=dict(size=9, color=CHART_GREY)))
+    return fig
+
+
+def model_comparison_chart(p_bert, p_base):
+    names = ["Fine-tuned BERT", "TF-IDF + LogReg"]
+    values = [p_bert, p_base]
+    fig = go.Figure(go.Bar(x=values, y=names, orientation="h", width=.42,
+        marker=dict(color=[CHART_MAUVE, CHART_ROSE]),
+        text=[f"{v:.1%}" for v in values], textposition="outside", cliponaxis=False,
+        textfont=dict(size=11, color=CHART_INK, family=CHART_FONT),
+        hovertemplate="%{y}<br>P(positive) %{x:.1%}<extra></extra>"))
+    fig.add_vline(x=.5, line_dash="dot", line_color=CHART_GREY, opacity=.55,
+                  annotation_text="50%", annotation_position="top",
+                  annotation_font=dict(size=9, color=CHART_GREY, family=CHART_FONT))
+    _chart_base(fig, height=230, margin=dict(l=6, r=64, t=24, b=8))
+    _chart_axes(fig, x_grid=True)
+    fig.update_xaxes(title_text="P(positive)", range=[0, 1.18], tickformat=".0%", nticks=5)
+    fig.update_yaxes(showgrid=False, automargin=True)
+    return fig
+
+
+def benchmark_radar(df):
+    colors = [CHART_MAUVE, CHART_ROSE, CHART_INK, CHART_GREY]
+    fills = ["rgba(189,145,172,.14)", "rgba(210,163,185,.14)",
+             "rgba(41,41,54,.06)", "rgba(119,117,130,.06)"]
+    fig = go.Figure()
+    for i, (_, row) in enumerate(df.iterrows()):
+        values = [float(row.get(key, 0) or 0) for key in METRIC_KEYS]
+        fig.add_trace(go.Scatterpolar(r=values + [values[0]], theta=METRIC_LABELS + [METRIC_LABELS[0]],
+            fill="toself", fillcolor=fills[i % len(fills)],
+            line=dict(color=colors[i % len(colors)], width=2),
+            marker=dict(size=5, color=colors[i % len(colors)]),
+            name=_short_model(str(row.get("Model", "Model"))),
+            hovertemplate="%{theta}<br>%{r:.1%}<extra>%{fullData.name}</extra>"))
+    _chart_base(fig, height=350, margin=dict(l=48, r=48, t=28, b=26), showlegend=True)
+    fig.update_layout(
+        polar=dict(
+            bgcolor="rgba(0,0,0,0)",
+            radialaxis=dict(visible=True, range=[0, 1], tickformat=".0%",
+                            tickangle=45, tickvals=[0, .5, 1],
+                            gridcolor=CHART_GRID, linecolor=CHART_AXIS,
+                            tickfont=dict(size=7, color=CHART_GREY, family=CHART_FONT)),
+            angularaxis=dict(gridcolor=CHART_GRID, linecolor=CHART_AXIS,
+                             tickfont=dict(size=8.5, color=CHART_INK, family=CHART_FONT))),
+        legend=dict(orientation="h", yanchor="top", y=-.09, x=0,
+                    font=dict(size=8, color=CHART_GREY)))
+    return fig
+
+
+def benchmark_delta_chart(df):
+    if len(df) < 2:
+        return None
+    first, second = df.iloc[0], df.iloc[1]
+    deltas = [float(first.get(key, 0) or 0) - float(second.get(key, 0) or 0) for key in METRIC_KEYS]
+    colors = [CHART_MAUVE if d >= 0 else CHART_ROSE for d in deltas]
+    limit = max(abs(d) for d in deltas) * 1.35 or .02
+    fig = go.Figure(go.Bar(x=deltas, y=METRIC_LABELS, orientation="h", width=.4,
+        marker=dict(color=colors), text=[f"{d:+.1%}" for d in deltas],
+        textposition="outside", cliponaxis=False,
+        textfont=dict(size=10, color=CHART_INK, family=CHART_FONT),
+        hovertemplate="%{y}<br>Δ %{x:+.1%}<extra></extra>"))
+    fig.add_vline(x=0, line_color=CHART_AXIS, line_width=1)
+    _chart_base(fig, height=330, margin=dict(l=6, r=44, t=18, b=8))
+    _chart_axes(fig, x_grid=True)
+    left = _short_model(str(first.get('Model', 'First'))).replace("Fine-tuned ", "")
+    right = _short_model(str(second.get('Model', 'Second'))).replace(" + LogReg", "")
+    fig.update_xaxes(title_text=f"{left} − {right}",
+                     range=[-limit, limit], tickformat=".0%", nticks=5)
+    fig.update_yaxes(showgrid=False, automargin=True)
+    return fig
+
+
+def benchmark_error_chart(data):
+    rows = []
+    for name, values in data.items():
+        cm = values.get("confusion_matrix")
+        if not cm or len(cm) < 2:
+            continue
+        tn, fp = cm[0][0], cm[0][1]
+        fn, tp = cm[1][0], cm[1][1]
+        negative_total = tn + fp
+        positive_total = fn + tp
+        rows.append({"name": _short_model(name).replace("Fine-tuned ", ""),
+                     "fp": fp / negative_total if negative_total else 0.0,
+                     "fn": fn / positive_total if positive_total else 0.0})
+    if not rows:
+        return None
+    names = [row["name"] for row in rows]
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=[row["fp"] for row in rows], y=names, orientation="h", name="False positive",
+        marker=dict(color=CHART_ROSE), text=[f"{row['fp']:.1%}" for row in rows],
+        textposition="outside", cliponaxis=False,
+        textfont=dict(size=9, color=CHART_INK, family=CHART_FONT),
+        hovertemplate="%{y}<br>False positive rate %{x:.1%}<extra></extra>"))
+    fig.add_trace(go.Bar(x=[row["fn"] for row in rows], y=names, orientation="h", name="False negative",
+        marker=dict(color=CHART_MAUVE), text=[f"{row['fn']:.1%}" for row in rows],
+        textposition="outside", cliponaxis=False,
+        textfont=dict(size=9, color=CHART_INK, family=CHART_FONT),
+        hovertemplate="%{y}<br>False negative rate %{x:.1%}<extra></extra>"))
+    highest = max(max(row["fp"], row["fn"]) for row in rows) * 1.28 or .05
+    _chart_base(fig, height=305, margin=dict(l=92, r=40, t=26, b=8), showlegend=True)
+    _chart_axes(fig, x_grid=True)
+    fig.update_layout(barmode="group", bargap=.34, bargroupgap=.12)
+    fig.update_xaxes(title_text="Error rate", range=[0, highest], tickformat=".0%",
+                     nticks=4, tickangle=0)
+    fig.update_yaxes(showgrid=False, categoryorder="array",
+                     categoryarray=list(reversed(names)))
+    return fig
+
+
+def benchmark_time_chart(data):
+    items = [(name, values.get("train_seconds")) for name, values in data.items()]
+    items = [(name, float(seconds)) for name, seconds in items
+             if isinstance(seconds, (int, float))]
+    if not items:
+        return None
+    names = [_short_model(name).replace("Fine-tuned ", "") for name, _ in items]
+    times = [seconds for _, seconds in items]
+    palette = [CHART_MAUVE, CHART_ROSE, CHART_LAVENDER, CHART_GREY]
+    fig = go.Figure(go.Bar(x=times, y=names, orientation="h", width=.4,
+        marker=dict(color=[palette[index % len(palette)] for index in range(len(names))]),
+        text=[f"{seconds:,.1f}s" for seconds in times], textposition="outside", cliponaxis=False,
+        textfont=dict(size=9, color=CHART_INK, family=CHART_FONT),
+        hovertemplate="%{y}<br>%{x:,.1f} seconds<extra></extra>"))
+    _chart_base(fig, height=235, margin=dict(l=88, r=56, t=14, b=8))
+    _chart_axes(fig, x_grid=True)
+    fig.update_xaxes(title_text="Training seconds", range=[0, max(times) * 1.35],
+                     nticks=4, tickangle=0)
+    fig.update_yaxes(showgrid=False, automargin=True, categoryorder="array",
+                     categoryarray=list(reversed(names)))
+    return fig
+
+
+def benchmark_data_chart(data):
+    keys = [("train_samples", "Training"), ("validation_samples", "Validation"), ("test_samples", "Test")]
+    names = [_short_model(name).replace("Fine-tuned ", "") for name in data]
+    series = {}
+    for key, label in keys:
+        values = [entry.get(key, 0) or 0 for entry in data.values()]
+        if any(values):
+            series[label] = values
+    if not series:
+        return None
+    colors = {"Training": CHART_LAVENDER, "Validation": CHART_ROSE, "Test": CHART_MAUVE}
+    fig = go.Figure()
+    for label, values in series.items():
+        fig.add_trace(go.Bar(x=values, y=names, orientation="h", name=label,
+            marker=dict(color=colors[label]),
+            hovertemplate="%{y}<br>" + label + " %{x:,.0f}<extra></extra>"))
+    _chart_base(fig, height=235, margin=dict(l=88, r=16, t=14, b=8), showlegend=True)
+    _chart_axes(fig, x_grid=True)
+    fig.update_layout(barmode="stack", bargap=.34, legend=dict(
+        orientation="h", yanchor="bottom", y=1.02, x=0, traceorder="normal",
+        bgcolor="rgba(0,0,0,0)", font=dict(size=8, color=CHART_GREY)))
+    fig.update_xaxes(title_text="Samples", tickformat=",.0f", nticks=4)
+    fig.update_yaxes(showgrid=False, automargin=True, categoryorder="array",
+                     categoryarray=list(reversed(names)))
+    return fig
+
+
+def confusion_heatmap(cm, model_name):
+    values = [[int(v) for v in row] for row in cm]
+    labels = ["Negative", "Positive"]
+    text = [[f"{v:,}" for v in row] for row in values]
+    peak = max(max(row) for row in values) or 1
+    fig = go.Figure(go.Heatmap(
+        z=values, x=labels, y=labels, zmin=0, zmax=peak, xgap=3, ygap=3,
+        colorscale=[[0, CHART_OFF], [.42, CHART_LAVENDER],
+                    [.72, CHART_ROSE], [1, CHART_MAUVE]],
+        text=text, texttemplate="%{text}",
+        textfont=dict(size=12, color=CHART_INK, family=CHART_FONT),
+        hovertemplate="Actual %{y}<br>Predicted %{x}<br>%{z:,} samples<extra></extra>",
+        showscale=False))
+    _chart_base(fig, height=300, margin=dict(l=52, r=12, t=8, b=48))
+    fig.update_xaxes(side="bottom", tickfont=dict(size=9, color=CHART_GREY),
+                     title_text="Predicted", title_font=dict(size=8, color=CHART_GREY),
+                     title_standoff=6, showgrid=False, zeroline=False, tickangle=0)
+    fig.update_yaxes(autorange="reversed", tickfont=dict(size=9, color=CHART_GREY),
+                     title_text="Actual", title_font=dict(size=8, color=CHART_GREY),
+                     title_standoff=6, showgrid=False, zeroline=False)
     return fig
 
 
 st.markdown("""
-<div class="hero">
-  <div class="hero-copy">
-    <div class="hero-kicker"><span class="kicker-dot"></span>Document intelligence · NLP</div>
-    <h1>🎭 <span class="hero-title-accent">SentiBERT</span></h1>
-    <p class="hero-sub">Explore sentiment at a glance, then inspect how it shifts across your document.</p>
-    <div class="hero-pills"><span>Fine-tuned BERT</span><span>Document analysis</span><span>Window-by-window insights</span></div>
+<div class="masthead">
+  <div class="brand">
+    <span class="brand-mark"></span>
+    <span class="brand-name">SentiBERT</span>
+    <span class="brand-suffix">NLP / Project 10</span>
   </div>
-  <div class="hero-art" aria-hidden="true">
-    <div class="hero-orbit hero-orbit-one"></div>
-    <div class="hero-orbit hero-orbit-two"></div>
-    <div class="hero-core"><span>✦</span></div>
-    <div class="hero-bubble hero-bubble-one">AI</div>
-    <div class="hero-bubble hero-bubble-two">+</div>
-    <div class="hero-bubble hero-bubble-three"></div>
+  <div class="masthead-meta">
+    <span>Document intelligence</span>
+    <span>Binary sentiment</span>
+    <span class="masthead-status"><i></i><span class="status-label">Model ready</span></span>
+  </div>
+</div>
+<div class="hero">
+  <div class="hero__copy">
+    <div class="hero__eyebrow">Fine-tuned BERT · windowed reading</div>
+    <h1>Senti<em>BERT</em></h1>
+    <p class="hero__lede">Read a document the way a careful editor would — one window at a time, with the tone mapped across the whole page.</p>
+    <div class="hero__meta">
+      <div class="hero__meta-item"><span class="hero__meta-label">Model</span><span class="hero__meta-value">DistilBERT</span></div>
+      <div class="hero__meta-item"><span class="hero__meta-label">Baseline</span><span class="hero__meta-value">TF-IDF · LogReg</span></div>
+      <div class="hero__meta-item"><span class="hero__meta-label">Corpus</span><span class="hero__meta-value">IMDb reviews</span></div>
+    </div>
+  </div>
+  <div class="hero__art" aria-hidden="true">
+    <span class="art-index">01 / 02</span>
+    <div class="art-ring art-ring--one"></div>
+    <div class="art-ring art-ring--two"></div>
+    <div class="art-ring art-ring--three"></div>
+    <div class="art-disc"></div>
+    <div class="art-cross"></div>
+    <div class="art-card">
+      <div class="art-card__head"><span>Signal / window</span><i></i></div>
+      <div class="art-card__read"><strong>P</strong><span>positive</span></div>
+      <div class="art-card__bars">
+        <i style="height:38%"></i><i style="height:52%"></i><i style="height:30%"></i><i style="height:64%"></i>
+        <i style="height:46%"></i><i style="height:72%"></i><i style="height:58%"></i><i style="height:40%"></i>
+        <i style="height:66%"></i><i style="height:50%"></i><i style="height:34%"></i><i style="height:62%"></i>
+        <i style="height:44%"></i><i style="height:70%"></i><i style="height:55%"></i><i style="height:78%"></i>
+      </div>
+      <div class="art-card__foot"><span>tone</span><span>01 — 32</span></div>
+    </div>
+    <span class="art-tag art-tag--a">Windowed inference</span>
+    <span class="art-tag art-tag--b">Neutral zone</span>
+    <span class="art-tag art-tag--c">Read the drift</span>
   </div>
 </div>
 """, unsafe_allow_html=True)
-tab_analyze, tab_compare = st.tabs(["✦  Analyze document", "◫  Model benchmark"])
+tab_analyze, tab_compare = st.tabs(["Analyze document", "Model benchmark"])
 
 with st.sidebar:
-    st.markdown("### Analysis settings")
+    st.markdown("""
+    <div class="side-head">
+      <span class="side-head__kicker">Instrument / 01</span>
+      <h2>Analysis settings</h2>
+      <p>Shape how each document is read. These controls affect analysis only — benchmark metrics are unchanged.</p>
+    </div>
+    """, unsafe_allow_html=True)
     neutral_band = st.slider("Neutral zone", 0.0, 0.30, 0.10, 0.01,
         help="Classify scores this close to 50% as neutral/mixed. The underlying model remains binary.")
     max_len = st.select_slider("Tokens per window", options=[128, 192, 256, 384, 512], value=256,
@@ -192,33 +441,58 @@ with st.sidebar:
     aggregation = st.radio("Combine windows", ["Mean", "Median"], horizontal=True,
         help="Mean reflects the overall average; median reduces the effect of unusually strong passages.")
     st.caption("Settings affect document analysis only. Training and benchmark metrics are unchanged.")
+    st.markdown('<div class="side-foot"><span>Local inference</span><i></i><span>v1.0</span></div>', unsafe_allow_html=True)
 
 with tab_analyze:
     _, _, is_local = load_bert()
+    st.markdown("""
+    <div class="section-head">
+      <span class="section-head__index">01</span>
+      <h2>Read the <em>room.</em></h2>
+      <p class="section-head__note">Upload a document or paste a passage. The model reads it in overlapping windows, then reports where the tone settles.</p>
+    </div>
+    """, unsafe_allow_html=True)
     if is_local:
         st.success("Fine-tuned local model loaded from `models/bert`.")
     else:
         st.info(f"Using public model `{FALLBACK}`. Train a local model with `python train_bert.py` for project-specific results.")
-    left, right = st.columns([1.05, .95], gap="large")
+    left, right = st.columns([1.1, .9], gap="large")
     with left:
+        with st.container(border=True):
+            st.markdown("""
+            <div class="field-head">
+              <span class="field-head__label">01 / Compose</span>
+              <span class="field-head__hint">TXT · PDF</span>
+            </div>
+            <p class="chart-note" style="margin:-0.35rem 0 0.85rem;">Upload a document, or paste a passage directly below.</p>
+            """, unsafe_allow_html=True)
+            up = st.file_uploader("Upload TXT or PDF", type=["txt", "pdf"], label_visibility="collapsed")
+            default = read_upload(up) if up else ""
+            text = st.text_area("Paste a review, report, or document", value=default, height=235,
+                                placeholder="Paste text here, or upload a TXT/PDF above…")
+            st.caption("PDFs with scanned pages need OCR before their text can be analyzed.")
+            analyze = st.button("Analyze sentiment", type="primary", use_container_width=True)
+    with right:
         st.markdown("""
-        <div class="upload-intro">
-          <div class="upload-icon">↥</div>
-          <div class="upload-copy"><strong>Add your document</strong><span>Upload a TXT/PDF or paste text below</span></div>
+        <div class="guide">
+          <div class="guide__eyebrow">Reading guide / three steps</div>
+          <h3 class="guide__title">What you’ll <em>see.</em></h3>
+          <p class="guide__intro">A document-level score, a confidence estimate, and a window-by-window view that reveals how the tone shifts.</p>
+          <div class="guide-step">
+            <span class="guide-step__index">01</span>
+            <div><span class="guide-step__title">Upload or paste</span><span class="guide-step__text">A TXT or PDF, or a passage typed directly into the field.</span></div>
+          </div>
+          <div class="guide-step">
+            <span class="guide-step__index">02</span>
+            <div><span class="guide-step__title">Choose the lens</span><span class="guide-step__text">Set the neutral zone and context window in the sidebar.</span></div>
+          </div>
+          <div class="guide-step">
+            <span class="guide-step__index">03</span>
+            <div><span class="guide-step__title">Read the movement</span><span class="guide-step__text">The trend view maps each overlapping window; documents over the cap are truncated at the end.</span></div>
+          </div>
+          <div class="guide__foot"><b>Note.</b> The model was trained on movie reviews; results on other topics may differ. Scanned PDFs need OCR.</div>
         </div>
         """, unsafe_allow_html=True)
-        up = st.file_uploader("Upload TXT or PDF", type=["txt", "pdf"], label_visibility="collapsed")
-        default = read_upload(up) if up else ""
-        text = st.text_area("Paste a review, report, or document", value=default, height=235,
-                            placeholder="Paste text here, or upload a TXT/PDF above…")
-        st.caption("PDFs with scanned pages need OCR before their text can be analyzed.")
-        analyze = st.button("Analyze sentiment", type="primary", use_container_width=True)
-    with right:
-        st.markdown("### What you’ll see")
-        st.markdown('<p class="section-note">A document level score, a confidence estimate, and a window-by-window view that helps reveal changes in tone.</p>', unsafe_allow_html=True)
-        st.markdown("**Quick guidance**")
-        st.markdown("- Upload a TXT/PDF or paste text.\n- Adjust the neutral zone and context window in the sidebar.\n- Documents over the window limit are truncated at the end.")
-        st.caption("The model was trained on movie reviews; results on other topics may differ.")
 
     if analyze:
         cleaned = clean_text(text)
@@ -231,7 +505,13 @@ with tab_analyze:
                 p_base = base.predict_proba([cleaned])[0][1] if base else None
             label, conf = verdict(p_bert, neutral_band)
             st.divider()
-            st.markdown("### Analysis overview")
+            st.markdown("""
+            <div class="section-head section-head--compact">
+              <span class="section-head__index">02</span>
+              <h2>The <em>reading.</em></h2>
+              <p class="section-head__note">A document-level verdict, its confidence, and the window-by-window movement behind it.</p>
+            </div>
+            """, unsafe_allow_html=True)
             m1, m2, m3, m4 = st.columns(4)
             m1.metric("Overall sentiment", label)
             m2.metric("Confidence", f"{conf:.1%}")
@@ -240,32 +520,89 @@ with tab_analyze:
             if len(windows) >= max_windows and len(windows) == max_windows:
                 st.warning(f"Analysis reached the {max_windows}-window cap. Increase Maximum windows to cover more of this document.")
             if len(windows) > 1:
-                st.markdown("### Sentiment through the document")
-                st.markdown('<p class="section-note">Each point represents an overlapping text window. Hover for its positive probability.</p>', unsafe_allow_html=True)
-                st.plotly_chart(probability_chart(windows), use_container_width=True, config={"displaylogo":False})
+                with st.container(border=True):
+                    st.markdown("""
+                    <div class="panel-head">
+                      <div class="panel-head__copy">
+                        <span class="panel-head__eyebrow">Trend / per window</span>
+                        <h3>Movement across the document</h3>
+                      </div>
+                      <p class="panel-head__note">Each point is one overlapping text window. Hover for its positive probability.</p>
+                    </div>
+                    <div class="panel-head__rule"></div>
+                    """, unsafe_allow_html=True)
+                    st.plotly_chart(probability_chart(windows, aggregation), use_container_width=True, config={"displaylogo":False})
+                spread = max(windows) - min(windows)
+                s1, s2 = st.columns(2, gap="large")
+                with s1:
+                    with st.container(border=True):
+                        st.markdown(f"""
+                        <div class="panel-head">
+                          <div class="panel-head__copy">
+                            <span class="panel-head__eyebrow">Distribution</span>
+                            <h3>Where the windows sit</h3>
+                          </div>
+                          <p class="panel-head__note">{len(windows)} windows · {spread:.0%} spread</p>
+                        </div>
+                        <div class="panel-head__rule"></div>
+                        """, unsafe_allow_html=True)
+                        st.plotly_chart(window_distribution_chart(windows), use_container_width=True, config={"displaylogo":False})
+                with s2:
+                    with st.container(border=True):
+                        st.markdown(f"""
+                        <div class="panel-head">
+                          <div class="panel-head__copy">
+                            <span class="panel-head__eyebrow">Composition</span>
+                            <h3>Window mix</h3>
+                          </div>
+                          <p class="panel-head__note">Neutral zone ±{neutral_band:.2f}</p>
+                        </div>
+                        <div class="panel-head__rule"></div>
+                        """, unsafe_allow_html=True)
+                        st.plotly_chart(window_mix_chart(windows, neutral_band), use_container_width=True, config={"displaylogo":False})
+                if p_base is not None:
+                    with st.container(border=True):
+                        st.markdown(f"""
+                        <div class="panel-head">
+                          <div class="panel-head__copy">
+                            <span class="panel-head__eyebrow">Cross-check</span>
+                            <h3>Model comparison</h3>
+                          </div>
+                          <p class="panel-head__note">{abs(p_bert - p_base):.1%} apart</p>
+                        </div>
+                        <div class="panel-head__rule"></div>
+                        """, unsafe_allow_html=True)
+                        st.plotly_chart(model_comparison_chart(p_bert, p_base), use_container_width=True, config={"displaylogo":False})
             else:
                 st.caption("This document fits in one window; add more text to see the trend chart.")
             with st.expander("Model details and comparison", expanded=p_base is not None):
-                detail_cols = st.columns([1,1])
-                with detail_cols[0]:
+                gauge_col, reading_col = st.columns([.64, .36], gap="large")
+                with gauge_col:
+                    st.markdown('<div class="panel-head__eyebrow">Confidence</div>', unsafe_allow_html=True)
                     st.plotly_chart(probability_gauge(p_bert), use_container_width=True, config={"displayModeBar":False})
+                with reading_col:
+                    st.markdown("#### Reading")
                     st.caption(f"BERT probability. Aggregation: {aggregation.lower()} of {len(windows)} windows.")
-                with detail_cols[1]:
-                    if p_base is not None:
-                        bl, bc = verdict(p_base, neutral_band)
-                        st.markdown("#### On this document")
-                        st.dataframe(pd.DataFrame([
-                            {"Model":"BERT", "Sentiment":label, "Confidence":f"{conf:.1%}", "P(positive)":f"{p_bert:.1%}"},
-                            {"Model":"TF-IDF + Logistic Regression", "Sentiment":bl, "Confidence":f"{bc:.1%}", "P(positive)":f"{p_base:.1%}"},
-                        ]), use_container_width=True, hide_index=True)
-                        delta = abs(p_bert-p_base)
-                        st.caption(f"The models differ by {delta:.1%} in positive probability.")
-                    else:
+                    if p_base is None:
                         st.info("Train the TF-IDF baseline with `python train_baseline.py` to compare a second model here.")
+                if p_base is not None:
+                    bl, bc = verdict(p_base, neutral_band)
+                    st.markdown("#### On this document")
+                    st.dataframe(pd.DataFrame([
+                        {"Model":"BERT", "Reading":f"{label} · {conf:.1%}", "P(pos.)":f"{p_bert:.1%}"},
+                        {"Model":"TF-IDF", "Reading":f"{bl} · {bc:.1%}", "P(pos.)":f"{p_base:.1%}"},
+                    ]), use_container_width=True, hide_index=True)
+                    delta = abs(p_bert-p_base)
+                    st.caption(f"TF-IDF = TF-IDF + Logistic Regression. The models differ by {delta:.1%} in positive probability.")
 
 with tab_compare:
-    st.markdown("### Benchmark results")
-    st.markdown('<p class="section-note">Held-out evaluation metrics saved by the training scripts.</p>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="section-head">
+      <span class="section-head__index">02</span>
+      <h2>Measure the <em>signal.</em></h2>
+      <p class="section-head__note">Held-out evaluation metrics saved by the training scripts. Every chart below reads directly from the saved results file.</p>
+    </div>
+    """, unsafe_allow_html=True)
     if METRICS_FILE.exists():
         data = json.loads(METRICS_FILE.read_text(encoding="utf-8"))
         rows = [{"Model": n, **{k: v.get(k, 0) for k in ("accuracy", "precision", "recall", "f1")},
@@ -274,26 +611,146 @@ with tab_compare:
         metric_cols = st.columns(4)
         for col, metric in zip(metric_cols, ["accuracy", "precision", "recall", "f1"]):
             col.metric(metric.title(), f"{df[metric].max():.1%}", help="Best value among saved models")
-        chart_df = df.melt(id_vars="Model", value_vars=["accuracy","precision","recall","f1"], var_name="Metric", value_name="Score")
-        fig = px.bar(chart_df, x="Metric", y="Score", color="Model", barmode="group", text=chart_df["Score"].map(lambda x:f"{x:.1%}"),
-                     color_discrete_sequence=["#55d6c2","#78a9ff","#f0c36a"])
-        fig.update_traces(textposition="outside", cliponaxis=False)
-        fig.update_layout(height=390, margin=dict(l=10,r=20,t=20,b=10), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#cbd5e1",family="DM Sans"), yaxis=dict(range=[0,1.1],tickformat=".0%",gridcolor="#263248"),
-            xaxis=dict(gridcolor="#1c293d"), legend_title_text="", hovermode="x unified")
-        st.plotly_chart(fig, use_container_width=True, config={"displaylogo":False})
-        st.dataframe(df, use_container_width=True, hide_index=True, column_config={
-            "accuracy":st.column_config.NumberColumn("Accuracy",format="%.1%"),
-            "precision":st.column_config.NumberColumn("Precision",format="%.1%"),
-            "recall":st.column_config.NumberColumn("Recall",format="%.1%"),
-            "f1":st.column_config.NumberColumn("F1",format="%.1%")})
-        for n,v in data.items():
-            if "confusion_matrix" in v:
-                with st.expander(f"{n} · confusion matrix"):
-                    cm = v["confusion_matrix"]
-                    cm_df = pd.DataFrame(cm, index=[f"Actual {l}" for l in LABELS], columns=[f"Predicted {l}" for l in LABELS])
-                    heat = px.imshow(cm_df, text_auto=True, color_continuous_scale=[[0,"#17243a"],[1,"#55d6c2"]], aspect="auto", labels=dict(color="Samples"))
-                    heat.update_layout(height=300, margin=dict(l=10,r=10,t=10,b=10), paper_bgcolor="rgba(0,0,0,0)", font=dict(color="#cbd5e1"))
-                    st.plotly_chart(heat, use_container_width=True, config={"displaylogo":False})
+
+        first_col, second_col = st.columns([1.08, .92], gap="large")
+        with first_col:
+            with st.container(border=True):
+                st.markdown("""
+                <div class="panel-head">
+                  <div class="panel-head__copy">
+                    <span class="panel-head__eyebrow">Performance / overview</span>
+                    <h3>Performance profile</h3>
+                  </div>
+                  <p class="panel-head__note">Four held-out metrics, one shape per model.</p>
+                </div>
+                <div class="panel-head__rule"></div>
+                """, unsafe_allow_html=True)
+                st.plotly_chart(benchmark_radar(df), use_container_width=True, config={"displaylogo":False})
+
+        with second_col:
+            delta_chart = benchmark_delta_chart(df)
+            with st.container(border=True):
+                if delta_chart is not None:
+                    first_name = _short_model(str(df.iloc[0].get("Model", "First")))
+                    second_name = _short_model(str(df.iloc[1].get("Model", "Second")))
+                    st.markdown(f"""
+                    <div class="panel-head">
+                      <div class="panel-head__copy">
+                        <span class="panel-head__eyebrow">Difference / by metric</span>
+                        <h3>Where they diverge</h3>
+                      </div>
+                      <p class="panel-head__note">{first_name} minus {second_name}.</p>
+                    </div>
+                    <div class="panel-head__rule"></div>
+                    """, unsafe_allow_html=True)
+                    st.plotly_chart(delta_chart, use_container_width=True, config={"displaylogo":False})
+                else:
+                    st.markdown("""
+                    <div class="panel-head">
+                      <div class="panel-head__copy">
+                        <span class="panel-head__eyebrow">Difference / by metric</span>
+                        <h3>Where they diverge</h3>
+                      </div>
+                    </div>
+                    <div class="panel-head__rule"></div>
+                    """, unsafe_allow_html=True)
+                    st.caption("A second model is needed to compare metric deltas.")
+
+        third_col, fourth_col = st.columns([.95, 1.05], gap="large")
+        with third_col:
+            error_chart = benchmark_error_chart(data)
+            with st.container(border=True):
+                st.markdown("""
+                <div class="panel-head">
+                  <div class="panel-head__copy">
+                    <span class="panel-head__eyebrow">Errors / by class</span>
+                    <h3>Error profile</h3>
+                  </div>
+                  <p class="panel-head__note">Class-conditional error rates from each confusion matrix.</p>
+                </div>
+                <div class="panel-head__rule"></div>
+                """, unsafe_allow_html=True)
+                if error_chart is not None:
+                    st.plotly_chart(error_chart, use_container_width=True, config={"displaylogo":False})
+                else:
+                    st.caption("Confusion matrices are not available for these results.")
+
+        with fourth_col:
+            with st.container(border=True):
+                st.markdown("""
+                <div class="panel-head">
+                  <div class="panel-head__copy">
+                    <span class="panel-head__eyebrow">Cost / coverage</span>
+                    <h3>Training and evaluation</h3>
+                  </div>
+                  <p class="panel-head__note">Training seconds and split sizes, as saved.</p>
+                </div>
+                <div class="panel-head__rule"></div>
+                """, unsafe_allow_html=True)
+                time_chart = benchmark_time_chart(data)
+                if time_chart is not None:
+                    st.plotly_chart(time_chart, use_container_width=True, config={"displaylogo":False})
+                data_chart = benchmark_data_chart(data)
+                if data_chart is not None:
+                    st.plotly_chart(data_chart, use_container_width=True, config={"displaylogo":False})
+                if time_chart is None and data_chart is None:
+                    st.caption("Training time and split sizes are not available in the saved results.")
+
+        cm_items = [(name, values) for name, values in data.items() if "confusion_matrix" in values]
+        if cm_items:
+            st.markdown("""
+            <div class="section-head section-head--compact" style="margin-top:1.6rem;">
+              <span class="section-head__index">03</span>
+              <h2>Where the <em>errors</em> land.</h2>
+              <p class="section-head__note">Actual classes run down the rows; predicted classes run across the columns.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            for start in range(0, len(cm_items), 2):
+                cm_cols = st.columns(2, gap="large")
+                for col, (name, values) in zip(cm_cols, cm_items[start:start + 2]):
+                    with col:
+                        with st.expander(f"{name} · confusion matrix"):
+                            with st.container(border=True):
+                                st.markdown(f"""
+                                <div class="panel-head">
+                                  <div class="panel-head__copy">
+                                    <span class="panel-head__eyebrow">Confusion matrix</span>
+                                    <h3>{_short_model(name)}</h3>
+                                  </div>
+                                </div>
+                                <div class="panel-head__rule"></div>
+                                """, unsafe_allow_html=True)
+                                st.plotly_chart(confusion_heatmap(values["confusion_matrix"], name),
+                                                use_container_width=True, config={"displaylogo":False})
+
+        with st.container(border=True):
+            st.markdown("""
+            <div class="panel-head">
+              <div class="panel-head__copy">
+                <span class="panel-head__eyebrow">Results / all models</span>
+                <h3>Saved benchmark</h3>
+              </div>
+              <p class="panel-head__note">Sort or inspect the raw held-out values.</p>
+            </div>
+            <div class="panel-head__rule"></div>
+            """, unsafe_allow_html=True)
+            df_view = df.copy()
+            df_view["Model"] = df_view["Model"].map(_short_model)
+            st.dataframe(df_view, use_container_width=True, hide_index=True, column_config={
+                "Model":st.column_config.TextColumn("Model",width="medium"),
+                "accuracy":st.column_config.NumberColumn("Accuracy",format="percent",width="small"),
+                "precision":st.column_config.NumberColumn("Precision",format="percent",width="small"),
+                "recall":st.column_config.NumberColumn("Recall",format="percent",width="small"),
+                "f1":st.column_config.NumberColumn("F1",format="percent",width="small")})
+            st.caption("Full model names · " + "; ".join(
+                f"{_short_model(name)} = {name}" for name in data))
     else:
         st.info("No evaluation results found yet. Run `python train_baseline.py` and `python train_bert.py` to populate this view.")
+
+st.markdown("""
+<div class="page-foot">
+  <span>SentiBERT · Document intelligence</span>
+  <span>DistilBERT + TF-IDF baseline</span>
+  <span>NLP / Project 10 · 2026</span>
+</div>
+""", unsafe_allow_html=True)

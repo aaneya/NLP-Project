@@ -1,1 +1,0 @@
-"""DocuMind user interface (Gradio)."""
