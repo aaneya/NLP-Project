@@ -4,3 +4,4 @@ __pycache__/
 models/bert/
 models/baseline.joblib
 .DS_Store
+.vercel

@@ -1,0 +1,28 @@
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=80
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# CPU-only PyTorch keeps the image small and avoids unused CUDA libraries.
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu "torch>=2.2"
+
+COPY requirements.txt ./
+# Use the tokenizer backend that reads the repo's vocab.txt-based tokenizer.
+RUN pip install --no-cache-dir -r requirements.txt "transformers>=4.46,<5" sentencepiece tiktoken
+
+COPY . .
+
+# Materialize the model as a local directory so inference never depends on
+# runtime Hugging Face access from Vercel's function network.
+RUN python -c "from huggingface_hub import snapshot_download; snapshot_download('distilbert-base-uncased-finetuned-sst-2-english', local_dir='/app/models/bert', allow_patterns=['config.json','tokenizer_config.json','vocab.txt','model.safetensors'])"
+
+EXPOSE 80
+
+CMD ["sh", "-c", "exec streamlit run app.py --server.address=0.0.0.0 --server.port=${PORT:-80} --server.headless=true --browser.gatherUsageStats=false"]

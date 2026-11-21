@@ -1,0 +1,9 @@
+.git
+.gitignore
+__pycache__/
+*.pyc
+.venv/
+*.log
+_deploy_chunks/
+models/bert/
+models/baseline.joblib
